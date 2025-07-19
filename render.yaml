@@ -1,14 +1,9 @@
 services:
   - type: web
     name: sinnerb2-bot
-    runtime: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: python bot.py
+    env: python
+    buildCommand: ""
+    startCommand: gunicorn main:app
     envVars:
-      - key: TOKEN
+      - key: TELEGRAM_BOT_TOKEN
         value: 7989100213:AAFLgFNp3iXdQfjL0OY-DoW43sWX8xUzms0
-      - key: PORT
-        value: 10000
-      - key: WEBHOOK_URL
-        value: https://sinnerb2-bot.onrender.com/webhook
-        sync: false  # You'll set this manually after deployment
