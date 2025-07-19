@@ -10,5 +10,5 @@ services:
       - key: PORT
         value: 10000
       - key: WEBHOOK_URL
-        value: https://your-render-service.onrender.com/webhook
+        value: https://api.telegram.org/bot7989100213:AAFLgFNp3iXdQfjL0OY-DoW43sWX8xUzms0/setWebhook?url=https://your-render-service.onrender.com/webhook
         sync: false  # You'll set this manually after deployment
