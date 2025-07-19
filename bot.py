@@ -25,7 +25,10 @@ OPENAI_API_KEY = os.environ['OPENAI_API_KEY']  # Will use your sk-proj... key
 ADMIN_USER_IDS = [int(id) for id in os.environ.get('ADMIN_USER_IDS', '7697559889').split(',') if id]
 
 # Initialize OpenAI client
-client = OpenAI(api_key=OPENAI_API_KEY)
+from openai import OpenAI
+
+# Initialize OpenAI client
+client = OpenAI(api_key=OPENAI_KEY)
 
 # Bot personality and behavior settings
 BOT_PERSONALITY = """
