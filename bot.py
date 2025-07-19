@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 # Configuration - replace with your actual values
 TOKEN = "7989100213:AAFLgFNp3iXdQfjL0OY-DoW43sWX8xUzms0"
-WEBHOOK_URL = "https://your-render-service.onrender.com/webhook"  # CHANGE THIS
+WEBHOOK_URL = "https://api.telegram.org/bot7989100213:AAFLgFNp3iXdQfjL0OY-DoW43sWX8xUzms0/setWebhook?url=https://your-render-service.onrender.com/webhook"  # CHANGE THIS
 PORT = 10000
 HOST = "0.0.0.0"
 
