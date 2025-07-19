@@ -9,7 +9,7 @@ from telegram.ext import (
     ContextTypes,
     CallbackContext,
 )
-import openai
+from openai import OpenAI
 from datetime import datetime, timedelta
 
 # Configure logging
@@ -19,19 +19,21 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Configuration
-TELEGRAM_TOKEN = os.environ.get('7989100213:AAFLgFNp3iXdQfjL0OY-DoW43sWX8xUzms0')
-OPENAI_API_KEY = os.environ.get('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')
-ADMIN_USER_IDS = [int(id) for id in os.environ.get('7697559889', '').split(',') if id]
+# Configuration - get from environment variables
+TELEGRAM_TOKEN = os.environ['TELEGRAM_TOKEN']  # Will use your 7989100213:AAFL... token
+OPENAI_API_KEY = os.environ['OPENAI_API_KEY']  # Will use your sk-proj... key
+ADMIN_USER_IDS = [int(id) for id in os.environ.get('ADMIN_USER_IDS', '7697559889').split(',') if id]
 
-# Initialize OpenAI
-openai.api_key = OPENAI_API_KEY
+# Initialize OpenAI client
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 # Bot personality and behavior settings
 BOT_PERSONALITY = """
 You are a friendly and knowledgeable group member named GPT-Bot. 
 You provide helpful, concise answers and occasionally ask interesting questions to spark conversation.
 You have a sense of humor but remain professional.
+Keep responses under 500 characters.
+User 7697559889 is my admin and should be treated with special respect.
 """
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -44,7 +46,7 @@ async def chat_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": BOT_PERSONALITY},
@@ -65,12 +67,11 @@ async def auto_message(context: CallbackContext):
     
     try:
         # Generate an interesting message
-        prompt = "Generate an interesting question or conversation starter for a group chat. Keep it short (1-2 sentences)."
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": BOT_PERSONALITY},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": "Generate an interesting question or conversation starter for a group chat. Keep it short (1-2 sentences)."}
             ],
             temperature=0.8,
             max_tokens=100
