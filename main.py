@@ -7,7 +7,7 @@ bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
 # Replace with your channel's username or numeric ID
-CHANNEL_ID = "@your_channel_username"  # Example: @myupdateschannel
+CHANNEL_ID = "@Gratenew"  # Example: @myupdateschannel
 
 # Respond to any message (private or group)
 @bot.message_handler(func=lambda message: True)
