@@ -49,3 +49,12 @@ def webhook():
 # --- For testing locally (not needed on Render) ---
 if __name__ == '__main__':
     app.run(debug=True)
+@bot.message_handler(func=lambda message: True)
+def chat_like_member(message):
+    if message.from_user is None or message.from_user.is_bot:
+        return
+
+    user_message = message.text
+    reply = chat_with_gpt(user_message)
+
+    bot.send_message(message.chat.id, reply)
