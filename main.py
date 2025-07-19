@@ -1,29 +1,118 @@
-from flask import Flask, request
-import telegram
-from telegram.ext import Dispatcher, CommandHandler
+import os
+import logging
+from telegram import Update
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    MessageHandler,
+    filters,
+    ContextTypes,
+    CallbackContext,
+)
+import openai
+from datetime import datetime, timedelta
 
-app = Flask(__name__)
-TOKEN = "7989100213:AAFLgFNp3iXdQfjL0OY-DoW43sWX8xUzms0"  # Replace with your token
-bot = telegram.Bot(token=TOKEN)
+# Configure logging
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
 
-@app.route('/')
-def home():
-    return "Bot is running!"
+# Configuration
+TELEGRAM_TOKEN = os.environ.get('7989100213:AAFLgFNp3iXdQfjL0OY-DoW43sWX8xUzms0')
+OPENAI_API_KEY = os.environ.get('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')
+ADMIN_USER_IDS = [int(id) for id in os.environ.get('7697559889', '').split(',') if id]
 
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    update = telegram.Update.de_json(request.get_json(), bot)
-    dispatcher.process_update(update)
-    return 'ok'
+# Initialize OpenAI
+openai.api_key = OPENAI_API_KEY
 
-def start(update, context):
-    update.message.reply_text('Hello! I am your bot.')
+# Bot personality and behavior settings
+BOT_PERSONALITY = """
+You are a friendly and knowledgeable group member named GPT-Bot. 
+You provide helpful, concise answers and occasionally ask interesting questions to spark conversation.
+You have a sense of humor but remain professional.
+"""
 
-# Set up command handlers
-dispatcher = Dispatcher(bot, None, workers=0)
-dispatcher.add_handler(CommandHandler("start", start))
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Send a message when the command /start is issued."""
+    user = update.effective_user
+    await update.message.reply_text(f"Hi {user.first_name}! I'm your ChatGPT-powered bot. Just chat with me normally!")
+
+async def chat_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Generate a response to user messages using ChatGPT."""
+    user_message = update.message.text
+    
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": BOT_PERSONALITY},
+                {"role": "user", "content": user_message}
+            ],
+            temperature=0.7,
+            max_tokens=500
+        )
+        reply = response.choices[0].message.content
+        await update.message.reply_text(reply)
+    except Exception as e:
+        logger.error(f"Error generating response: {e}")
+        await update.message.reply_text("Sorry, I'm having trouble thinking right now. Try again later.")
+
+async def auto_message(context: CallbackContext):
+    """Send automated messages to groups where the bot is admin."""
+    job = context.job
+    
+    try:
+        # Generate an interesting message
+        prompt = "Generate an interesting question or conversation starter for a group chat. Keep it short (1-2 sentences)."
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": BOT_PERSONALITY},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.8,
+            max_tokens=100
+        )
+        message = response.choices[0].message.content
+        
+        # Send to all groups where bot is admin
+        for chat_id in context.bot_data.get('admin_chats', set()):
+            try:
+                await context.bot.send_message(chat_id=chat_id, text=message)
+            except Exception as e:
+                logger.error(f"Error sending to {chat_id}: {e}")
+    except Exception as e:
+        logger.error(f"Error in auto_message: {e}")
+
+async def track_admin_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Track groups where the bot was added as admin."""
+    if update.message and update.message.new_chat_members:
+        for member in update.message.new_chat_members:
+            if member.id == context.bot.id:
+                chat_id = update.message.chat_id
+                if 'admin_chats' not in context.bot_data:
+                    context.bot_data['admin_chats'] = set()
+                context.bot_data['admin_chats'].add(chat_id)
+                logger.info(f"Added to group {chat_id} as admin")
+
+def main():
+    """Start the bot."""
+    # Create the Application
+    application = Application.builder().token(TELEGRAM_TOKEN).build()
+    
+    # Add handlers
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat_response))
+    application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, track_admin_chats))
+    
+    # Schedule auto messages (every 5 minutes)
+    job_queue = application.job_queue
+    job_queue.run_repeating(auto_message, interval=300, first=10)
+    
+    # Start the Bot
+    application.run_polling()
 
 if __name__ == '__main__':
-    # Set webhook
-    bot.set_webhook(url="https://your-render-service.onrender.com/webhook")
-    app.run(host='0.0.0.0', port=10000)
+    main()
