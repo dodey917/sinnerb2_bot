@@ -20,9 +20,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Hardcoded configuration (replace with your actual values)
+# Configuration - replace with your actual values
 TOKEN = "7989100213:AAFLgFNp3iXdQfjL0OY-DoW43sWX8xUzms0"
-WEBHOOK_URL = "https://your-render-service.onrender.com/webhook"  # ← CHANGE THIS
+WEBHOOK_URL = "https://your-render-service.onrender.com/webhook"  # CHANGE THIS
 PORT = 10000
 HOST = "0.0.0.0"
 
@@ -32,18 +32,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"🔊 Echo: {update.message.text}")
 
-async def configure_webhook(app: Application):
-    """Set up webhook and commands"""
-    await app.bot.set_webhook(
-        url=WEBHOOK_URL,
-        drop_pending_updates=True,
-        allowed_updates=["message", "edited_message"]
-    )
-    await app.bot.set_my_commands([
+async def set_commands(application: Application):
+    """Set bot commands"""
+    await application.bot.set_my_commands([
         BotCommand("start", "Start the bot"),
         BotCommand("help", "Get help")
     ])
-    logger.info(f"Webhook configured for {WEBHOOK_URL}")
 
 def create_app():
     """Initialize application"""
@@ -53,15 +47,10 @@ def create_app():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
-    # Configure webhook on startup
-    application.run_webhook(
-        listen=HOST,
-        port=PORT,
-        webhook_url=WEBHOOK_URL,
-        secret_token='WEBHOOK_SECRET',  # Optional security
-        post_init=configure_webhook
-    )
     return application
+
+# Initialize Telegram application
+telegram_app = create_app()
 
 # Flask routes
 @app.route('/')
@@ -74,8 +63,19 @@ async def webhook_handler():
     await telegram_app.process_update(update)
     return '', 200
 
-# Initialize
-telegram_app = create_app()
+async def setup_webhook():
+    """Configure webhook and commands"""
+    await set_commands(telegram_app)
+    await telegram_app.bot.set_webhook(
+        url=WEBHOOK_URL,
+        drop_pending_updates=True,
+        allowed_updates=["message", "edited_message"]
+    )
+    logger.info(f"✅ Webhook configured for {WEBHOOK_URL}")
 
 if __name__ == '__main__':
+    import asyncio
+    # Run setup tasks
+    asyncio.run(setup_webhook())
+    # Start Flask server
     app.run(host=HOST, port=PORT)
