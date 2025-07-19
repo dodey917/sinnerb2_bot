@@ -1,51 +1,51 @@
-import os
 from flask import Flask, request
 import telebot
+import openai
+import os
 
-TOKEN = os.getenv("7989100213:AAFLgFNp3iXdQfjL0OY-DoW43sWX8xUzms0")
-bot = telebot.TeleBot(TOKEN)
+# --- Config ---
+API_TOKEN = '7989100213:AAFLgFNp3iXdQfjL0OY-DoW43sWX8xUzms0'
+OPENAI_API_KEY = os.getenv("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")  # safer this way
+
+bot = telebot.TeleBot(API_TOKEN)
 app = Flask(__name__)
+openai.api_key = OPENAI_API_KEY
 
-# Replace with your channel's username or numeric ID
-CHANNEL_ID = "@Gratenew"  # Example: @myupdateschannel
 
-# Respond to any message (private or group)
+# --- ChatGPT Reply Function ---
+def chat_with_gpt(message):
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",  # You can change this if needed
+            messages=[{"role": "user", "content": message}],
+            temperature=0.7,
+            max_tokens=150
+        )
+        return response['choices'][0]['message']['content'].strip()
+    except Exception as e:
+        print(f"OpenAI error: {e}")
+        return "Sorry, I had trouble thinking. Try again later."
+
+
+# --- Handle Messages ---
 @bot.message_handler(func=lambda message: True)
-def handle_message(message):
-    chat_type = message.chat.type
-    user_text = message.text.lower()
+def echo_all(message):
+    reply = chat_with_gpt(message.text)
+    bot.send_message(message.chat.id, reply)
 
-    # Respond differently based on chat type
-    if chat_type == "private":
-        response = generate_reply(user_text)
-        bot.send_message(message.chat.id, response)
-    elif chat_type in ["group", "supergroup"]:
-        if "sinnerb2" in user_text:
-            bot.send_message(message.chat.id, "👋 Did someone call me?")
-    elif chat_type == "channel":
-        # Optional: post to channel automatically
-        bot.send_message(CHANNEL_ID, "Channel message received.")
 
-# Simple reply logic
-def generate_reply(text):
-    if "hello" in text:
-        return "Hello! How can I assist you today?"
-    elif "help" in text:
-        return "I'm here to help! Just ask anything."
-    elif "who are you" in text:
-        return "I'm sinnerb2_bot, your AI assistant. 😈"
-    else:
-        return f"You said: {text}"
-
-@app.route("/webhook", methods=["POST"])
+# --- Webhook Endpoint ---
+@app.route('/webhook', methods=['POST'])
 def webhook():
-    update = telebot.types.Update.de_json(request.get_data().decode("utf-8"))
-    bot.process_new_updates([update])
-    return "OK", 200
+    if request.headers.get('content-type') == 'application/json':
+        json_string = request.get_data().decode('utf-8')
+        update = telebot.types.Update.de_json(json_string)
+        bot.process_new_updates([update])
+        return '', 200
+    else:
+        return 'Unsupported Media Type', 415
 
-@app.route("/", methods=["GET"])
-def home():
-    return "Bot is running!", 200
 
-if __name__ == "__main__":
-    app.run()
+# --- For testing locally (not needed on Render) ---
+if __name__ == '__main__':
+    app.run(debug=True)
